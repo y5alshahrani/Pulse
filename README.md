@@ -43,4 +43,5 @@ The script rewords "your" to "our", drops the owner-only fields, and writes the 
 ## Notes
 - Pages are English only, like the US page they follow.
 - Favourable / unfavourable shading uses slate against copper (no red on the brand palette); every signal also carries a shape and a printed value.
-- Risk levels: Critical is charcoal, High is bronze, Elevated is copper wash, Low is slate wash.
+- Risk levels: Critical is charcoal, High is bronze, Elevated is copper wash, Low is slate wash. Shock-watch status uses the same scale: escalating, active, watch, dormant.
+- The world composite is 85% the four regional economies and 15% a geopolitics score (100 = calm world). A geopolitical overlay rule blocks "Add" while any geopolitical shock is escalating or Critical.

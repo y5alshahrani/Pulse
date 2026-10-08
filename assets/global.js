@@ -78,10 +78,10 @@
     box.appendChild(left);
     var right = el("div");
     right.appendChild(el("span", "label", "World composite"));
-    right.appendChild(meter(d.world && d.world.composite, "", "Crisis setting", "Best for equities", "of 100 for equities"));
+    right.appendChild(meter(d.world && d.world.composite, "", "Crisis setting", "Best for equities", "of 100 for equities" + (d.world && isNum(d.world.compositeEconomic) && isNum(d.world.geopolitics) ? " · economy " + d.world.compositeEconomic + ", geopolitics " + d.world.geopolitics : "")));
     var wn = d.worldNotes || {};
     var ul = el("ul", "kn");
-    [["growth", "Growth"], ["inflation", "Inflation"], ["policy", "Policy"], ["markets", "Markets"]].forEach(function (p) {
+    [["growth", "Growth"], ["inflation", "Inflation"], ["policy", "Policy"], ["markets", "Markets"], ["geopolitics", "Geopolitics"]].forEach(function (p) {
       var li = el("li"); var s = d.world ? d.world[p[0]] : null;
       li.appendChild(signalIcon(!isNum(s) ? "neutral" : s >= 55 ? "good" : s >= 42 ? "warn" : "bad"));
       var l = el("span", "l", p[1] + (wn[p[0]] ? ": " + wn[p[0]] : "")); l.style.whiteSpace = "normal"; li.appendChild(l);
@@ -89,7 +89,14 @@
     });
     right.appendChild(ul);
     box.appendChild(right);
-    return box;
+    var ov = d.verdict && d.verdict.overlay;
+    if (!ov) return box;
+    var frag = document.createDocumentFragment(); frag.appendChild(box);
+    var o = el("div", "overlay" + (ov.active ? "" : " off")); o.id = "overlay";
+    var hd = el("div", "hd"); hd.appendChild(el("span", "label", "Geopolitical overlay · " + (ov.active ? "active" : "not active"))); hd.appendChild(el("span", null, ov.rule || "")); o.appendChild(hd);
+    [["Why it is " + (ov.active ? "on" : "off"), ov.reason], ["What it does to the decision", ov.effect], ["How it switches off", ov.release || "The overlay lifts when no shock on the watch list is marked escalating or Critical for two consecutive refreshes."]].forEach(function (p) { if (!p[1]) return; var c = el("div"); c.appendChild(el("b", null, p[0])); c.appendChild(document.createTextNode(p[1])); o.appendChild(c); });
+    frag.appendChild(o);
+    return frag;
   }
   function renderQA(d) {
     var items = arr(d.verdict && d.verdict.answers); if (!items.length) return null;
@@ -136,14 +143,14 @@
   }
   function renderScores(d) {
     var w = d.world; if (!w) return null;
-    var s = section("world", "World scores", "Weighted across the four regions. 100 is the best setting for equities; 50 is neutral.");
+    var s = section("world", "World scores", "The four economic dimensions are weighted across the regions; geopolitics is scored for the world as a whole. 100 is the best setting for equities; 50 is neutral.");
     var g = el("div", "scores"); var wn = d.worldNotes || {};
-    [["growth", "Growth"], ["inflation", "Inflation"], ["policy", "Policy"], ["markets", "Markets"], ["composite", "Composite"]].forEach(function (p) {
+    [["growth", "Growth"], ["inflation", "Inflation"], ["policy", "Policy"], ["markets", "Markets"], ["geopolitics", "Geopolitics"], ["composite", "Composite"]].forEach(function (p) {
       var b = el("div", "score"); b.appendChild(el("span", "label", p[1]));
       var n = el("div", "n num", isNum(w[p[0]]) ? w[p[0]] : "n/a"); n.appendChild(el("small", null, "/100")); b.appendChild(n);
       var bar = el("div", "sbar"); var i = el("i"); i.style.width = clamp(w[p[0]]) + "%"; i.style.background = clamp(w[p[0]]) >= 55 ? "var(--good)" : clamp(w[p[0]]) >= 42 ? "var(--warn)" : "var(--bad)"; bar.appendChild(i); b.appendChild(bar);
       if (wn[p[0]]) b.appendChild(el("p", "note", wn[p[0]]));
-      if (p[0] === "composite" && d.weights) b.appendChild(el("p", "note", "Weights: " + Object.keys(d.weights).map(function (k) { return k.toUpperCase() + " " + Math.round(d.weights[k] * 100) + "%"; }).join(", ")));
+      if (p[0] === "composite" && d.weights) b.appendChild(el("p", "note", "Region weights: " + Object.keys(d.weights).map(function (k) { return k.toUpperCase() + " " + Math.round(d.weights[k] * 100) + "%"; }).join(", ") + (isNum(d.geoWeight) ? "; geopolitics " + Math.round(d.geoWeight * 100) + "% of the total" : "")));
       g.appendChild(b);
     });
     s.appendChild(g); return s;
@@ -214,14 +221,16 @@
     var left = el("div"); left.appendChild(el("span", "label", "Overall")); var big = el("div", "big"); big.appendChild(el("span", "lvl " + (r.level === "Severe" ? "Critical" : r.level === "Guarded" ? "Elevated" : r.level), r.level)); big.appendChild(document.createTextNode(" " + (isNum(r.score) ? r.score + "/100" : ""))); left.appendChild(big);
     if (r.note) left.appendChild(el("p", "note", r.note)); box.appendChild(left);
     var right = el("div"); right.appendChild(el("span", "label", "Critical and high risks"));
+    if (isNum(r.geopolitics)) { var gl = el("p", "note"); gl.appendChild(el("b", null, "Geopolitics score " + r.geopolitics + "/100. ")); gl.appendChild(document.createTextNode("Enters the world composite; 100 is a calm world.")); left.appendChild(gl); }
     var ul = el("ul", "toplist"); arr(r.top).forEach(function (t) { var li = el("li"); li.appendChild(el("span", "lvl " + t.level, t.level)); li.appendChild(el("span", null, t.name)); var tr = el("span", "chip"); tr.style.fontWeight = "400"; tr.style.color = "var(--muted)"; tr.appendChild(trendIcon(t.trend)); tr.appendChild(document.createTextNode(t.trend || "")); li.appendChild(tr); ul.appendChild(li); });
     right.appendChild(ul);
+    if (arr(r.shocks).length) { right.appendChild(el("span", "label", "Shocks active or escalating")); var ul2 = el("ul", "toplist"); r.shocks.forEach(function (t) { var li = el("li"); li.appendChild(el("span", "st " + (t.status || ""), t.status || "")); li.appendChild(el("span", null, t.name + (t.probability ? " · " + t.probability + " probability" : "") + (t.date ? " · " + dayLabel(t.date) : ""))); ul2.appendChild(li); }); right.appendChild(ul2); }
     var a = el("a", null, "Open the risk monitor"); a.href = "#risk"; a.addEventListener("click", function (ev) { ev.preventDefault(); setTab("risk"); window.scrollTo(0, 0); }); right.appendChild(a);
     box.appendChild(right); s.appendChild(box); return s;
   }
   function renderExec(d) {
     var nav = el("nav", "jump"); nav.setAttribute("aria-label", "Sections");
-    [["verdict", "Decision"], ["questions", "Four questions"], ["regions", "Regions"], ["world", "World scores"], ["changes", "What changed"], ["conditions", "What flips it"], ["scenarios", "Paths"], ["themes", "Messages"], ["watch", "Watch"], ["risk-summary", "Risk"]].forEach(function (p) { var a = el("a", null, p[1]); a.href = "#" + p[0]; nav.appendChild(a); });
+    [["verdict", "Decision"], ["overlay", "Overlay"], ["questions", "Four questions"], ["regions", "Regions"], ["world", "World scores"], ["changes", "What changed"], ["conditions", "What flips it"], ["scenarios", "Paths"], ["themes", "Messages"], ["watch", "Watch"], ["risk-summary", "Risk"]].forEach(function (p) { var a = el("a", null, p[1]); a.href = "#" + p[0]; nav.appendChild(a); });
     return [nav, renderVerdict(d), renderQA(d), renderRegions(d), renderScores(d), renderChanges(d), renderConditions(d), renderScenarios(d), renderThemes(d), renderWatch(d), renderRiskSummary(d), notesSec(d.notes, "Notes")];
   }
 
@@ -232,6 +241,8 @@
     var left = el("div"); left.appendChild(el("span", "label", "Overall risk level"));
     var big = el("div", "big"); big.appendChild(el("span", "lvl " + (o.level === "Severe" ? "Critical" : o.level === "Guarded" ? "Elevated" : o.level), o.level || "")); left.appendChild(big);
     left.appendChild(meter(o.score, "risk", "Calm", "Crisis", "of 100, 100 is most dangerous"));
+    var gp = r.geopolitics;
+    if (gp && isNum(gp.score)) { left.appendChild(el("span", "label", "Geopolitics score")); left.appendChild(meter(gp.score, "", "Global war", "Calm world", "of 100, 100 is calm · " + (gp.trend || ""))); if (gp.note) left.appendChild(el("p", "note", gp.note)); }
     box.appendChild(left);
     var right = el("div"); right.appendChild(el("span", "label", "The read")); if (o.note) right.appendChild(el("p", "note", o.note));
     var counts = {}; arr(r.risks).forEach(function (x) { counts[x.level] = (counts[x.level] || 0) + 1; });
@@ -239,9 +250,9 @@
     right.appendChild(ul); box.appendChild(right);
     return box;
   }
-  function renderGauges(r) {
-    var items = arr(r.gauges); if (!items.length) return null;
-    var s = section("gauges", "Stress gauges", "Market prices that move before the data does. The bar is a 0 to 100 stress score; the colour is the band.");
+  function renderGauges(r, group) {
+    var items = arr(r.gauges).filter(function (x) { return group === "geopolitics" ? x.group === "geopolitics" : x.group !== "geopolitics"; }); if (!items.length) return null;
+    var s = group === "geopolitics" ? section("geo-gauges", "Geopolitical gauges", "What the war-risk market is saying: shipping, insurance, the oil curve and prediction markets. The bar is a 0 to 100 stress score.") : section("gauges", "Market stress gauges", "Market prices that move before the data does. The bar is a 0 to 100 stress score; the colour is the band.");
     var g = el("div", "gauges");
     items.forEach(function (x) {
       var b = el("div", "gauge");
@@ -288,6 +299,38 @@
     cats.forEach(function (t) { var b = el("button", null, t); b.type = "button"; b.dataset.tag = t; b.addEventListener("click", function () { riskFilter = t; paint(); }); f.appendChild(b); });
     s.appendChild(f); s.appendChild(list); paint(); return s;
   }
+  var STATUS_ORDER = { escalating: 0, active: 1, watch: 2, dormant: 3 };
+  var shockFilter = "All";
+  function renderShocks(r) {
+    var all = arr(r.shocks).slice().sort(function (a, b) { return (STATUS_ORDER[a.status] != null ? STATUS_ORDER[a.status] : 9) - (STATUS_ORDER[b.status] != null ? STATUS_ORDER[b.status] : 9); });
+    if (!all.length) return null;
+    var s = section("shocks", "Shock watch", "The possible global shock events being monitored, ordered by status. Each carries its early-warning levels, the date that matters, what it would do to markets, and what it would make cheap.");
+    var cats = ["All"]; all.forEach(function (x) { if (x.category && cats.indexOf(x.category) < 0) cats.push(x.category); });
+    if (cats.indexOf(shockFilter) < 0) shockFilter = "All";
+    var f = el("div", "filters"); f.setAttribute("role", "group"); f.setAttribute("aria-label", "Filter shocks by category");
+    var counts = {}; all.forEach(function (x) { counts[x.status] = (counts[x.status] || 0) + 1; });
+    var tl = el("div", "tally"); ["escalating", "active", "watch", "dormant"].forEach(function (k) { if (counts[k]) { var m = el("span", "mini"); m.appendChild(el("span", "st " + k, k)); m.appendChild(document.createTextNode(" " + counts[k])); tl.appendChild(m); } });
+    s.querySelector(".sec-head").appendChild(tl);
+    var grid = el("div", "shocks");
+    function paint() {
+      grid.textContent = "";
+      all.filter(function (x) { return shockFilter === "All" || x.category === shockFilter; }).forEach(function (x) {
+        var c = el("div", "shock " + (x.status || ""));
+        var hd = el("div", "hd"); hd.appendChild(el("h3", null, x.name)); hd.appendChild(el("span", "st " + (x.status || ""), x.status || "")); c.appendChild(hd);
+        var meta = el("div", "meta"); meta.appendChild(el("span", null, x.category || "")); if (x.probability) meta.appendChild(el("span", null, "Probability " + x.probability + (x.horizon ? ", " + x.horizon : ""))); if (x.date) meta.appendChild(el("span", "num", "Date to watch " + dayLabel(x.date))); c.appendChild(meta);
+        if (x.what) c.appendChild(el("p", null, x.what));
+        function line(label, text) { if (!text) return; var p = el("p"); p.appendChild(el("b", null, label)); p.appendChild(document.createTextNode(text)); c.appendChild(p); }
+        line("Now", x.status_note); line("Odds", x.probNote); line("Impact", x.impact);
+        if (arr(x.warnings).length) { var w = el("div", "wl"); w.appendChild(el("b", null, "Early warnings")); var ul = el("ul"); x.warnings.forEach(function (t) { ul.appendChild(el("li", null, t)); }); w.appendChild(ul); c.appendChild(w); }
+        line("What it would make cheap", x.cheap);
+        if (x.src) { var sl = el("div", "srcl"); sl.appendChild(link(x.src, x.url)); c.appendChild(sl); }
+        grid.appendChild(c);
+      });
+      Array.prototype.forEach.call(f.children, function (b) { b.setAttribute("aria-pressed", b.dataset.tag === shockFilter ? "true" : "false"); });
+    }
+    cats.forEach(function (t) { var b = el("button", null, t); b.type = "button"; b.dataset.tag = t; b.addEventListener("click", function () { shockFilter = t; paint(); }); f.appendChild(b); });
+    s.appendChild(f); s.appendChild(grid); paint(); return s;
+  }
   function renderEvents(r) {
     var all = arr(r.events).slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }); if (!all.length) return null;
     var s = section("events", "Risk developments", "Dated events from the last month, newest first.");
@@ -308,8 +351,8 @@
   }
   function renderRisk(r) {
     var nav = el("nav", "jump"); nav.setAttribute("aria-label", "Sections");
-    [["overall", "Overall"], ["gauges", "Stress gauges"], ["register", "Register"], ["events", "Developments"], ["risk-calendar", "Calendar"]].forEach(function (p) { var a = el("a", null, p[1]); a.href = "#" + p[0]; nav.appendChild(a); });
-    return [nav, renderOverall(r), renderGauges(r), renderRegister(r), renderEvents(r), renderCalendar(r.calendar, "risk-calendar", "Risk calendar", "Decisions, deadlines and events that could move the level."), notesSec(r.notes, "Data notes")];
+    [["overall", "Overall"], ["shocks", "Shock watch"], ["geo-gauges", "Geopolitical gauges"], ["gauges", "Market gauges"], ["register", "Register"], ["events", "Developments"], ["risk-calendar", "Calendar"]].forEach(function (p) { var a = el("a", null, p[1]); a.href = "#" + p[0]; nav.appendChild(a); });
+    return [nav, renderOverall(r), renderShocks(r), renderGauges(r, "geopolitics"), renderGauges(r, "markets"), renderRegister(r), renderEvents(r), renderCalendar(r.calendar, "risk-calendar", "Risk and geopolitical calendar", "Decisions, deadlines, elections and expiries that could move the level."), notesSec(r.notes, "Data notes")];
   }
 
   /* ---------- Cross-market links ---------- */
