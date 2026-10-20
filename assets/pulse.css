@@ -116,7 +116,7 @@ nav.jump a:hover{color:var(--bronze);border-color:var(--copper)}
 .r-signal{grid-area:signal}
 .r-spark{grid-area:spark;align-self:center}
 .r-read{grid-area:read;color:#575049;font-size:14.5px;line-height:1.6;max-width:78ch}
-.srcl{white-space:nowrap;font-size:12px;color:var(--mist)}
+.srcl{white-space:normal;overflow-wrap:anywhere;font-size:12px;color:var(--mist)}
 .srcl a{color:var(--mist);text-decoration:none;border-bottom:.5px solid var(--stone)}
 .srcl a:hover{color:var(--bronze);border-color:var(--copper)}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--graphite)}
